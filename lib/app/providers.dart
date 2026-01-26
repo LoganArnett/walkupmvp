@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:walkupmvp/data/local/app_db.dart';
 import 'package:walkupmvp/features/audio/audio_controller.dart';
@@ -26,15 +27,18 @@ final allTeamsProvider = StreamProvider((ref) {
 final currentTeamIdProvider = StateProvider<String?>((ref) => null);
 
 /// Players for current team provider
-final currentTeamPlayersProvider = FutureProvider((ref) async {
+final currentTeamPlayersProvider = StreamProvider((ref) {
   final db = ref.watch(databaseProvider);
   final teamId = ref.watch(currentTeamIdProvider);
   
   if (teamId == null) {
-    return <Player>[];
+    return Stream.value(<Player>[]);
   }
   
-  return db.getPlayersByTeamOrdered(teamId);
+  return (db.select(db.players)
+        ..where((p) => p.teamId.equals(teamId))
+        ..orderBy([(p) => OrderingTerm(expression: p.battingOrder)]))
+      .watch();
 });
 
 /// Selected player index for game day

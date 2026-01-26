@@ -21,7 +21,7 @@ class Teams extends Table {
 /// Players table
 class Players extends Table {
   TextColumn get id => text()();
-  TextColumn get teamId => text()();
+  TextColumn get teamId => text().references(Teams, #id)();
   TextColumn get name => text()();
   IntColumn get number => integer()();
   IntColumn get battingOrder => integer()();
@@ -33,7 +33,7 @@ class Players extends Table {
 
 /// Walkup assignments table
 class Assignments extends Table {
-  TextColumn get playerId => text()();
+  TextColumn get playerId => text().references(Players, #id)();
   TextColumn get sourceType =>
       text()(); // 'youtube' | 'localFile' | 'builtIn'
   TextColumn get youtubeVideoId => text().nullable()();
@@ -48,7 +48,7 @@ class Assignments extends Table {
 
 /// Announcements table
 class Announcements extends Table {
-  TextColumn get playerId => text()();
+  TextColumn get playerId => text().references(Players, #id)();
   TextColumn get mode => text()(); // 'recorded' | 'tts'
   TextColumn get localUri => text().nullable()();
   TextColumn get ttsTemplate => text().nullable()();
@@ -64,7 +64,28 @@ class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        // For now, just recreate everything on schema change
+        // In production, you'd want proper migrations
+        if (from < 2) {
+          // Drop and recreate all tables with new foreign keys
+          await m.deleteTable(announcements.actualTableName);
+          await m.deleteTable(assignments.actualTableName);
+          await m.deleteTable(players.actualTableName);
+          await m.deleteTable(teams.actualTableName);
+          await m.createAll();
+        }
+      },
+    );
+  }
 
   // Team queries
   Future<List<Team>> getAllTeams() => select(teams).get();
@@ -72,8 +93,16 @@ class AppDb extends _$AppDb {
       (select(teams)..where((t) => t.id.equals(id))).getSingleOrNull();
   Future<int> insertTeam(TeamsCompanion team) => into(teams).insert(team);
   Future<bool> updateTeam(TeamsCompanion team) => update(teams).replace(team);
-  Future<int> deleteTeam(String id) =>
-      (delete(teams)..where((t) => t.id.equals(id))).go();
+  Future<int> deleteTeam(String id) async {
+    // Manually delete related data since Drift doesn't auto-cascade
+    final playersList = await getPlayersByTeam(id);
+    for (final player in playersList) {
+      await deleteAssignment(player.id);
+      await deleteAnnouncement(player.id);
+      await deletePlayer(player.id);
+    }
+    return (delete(teams)..where((t) => t.id.equals(id))).go();
+  }
 
   // Player queries
   Future<List<Player>> getPlayersByTeam(String teamId) =>
@@ -89,8 +118,12 @@ class AppDb extends _$AppDb {
       into(players).insert(player);
   Future<bool> updatePlayer(PlayersCompanion player) =>
       update(players).replace(player);
-  Future<int> deletePlayer(String id) =>
-      (delete(players)..where((p) => p.id.equals(id))).go();
+  Future<int> deletePlayer(String id) async {
+    // Delete related data first
+    await deleteAssignment(id);
+    await deleteAnnouncement(id);
+    return (delete(players)..where((p) => p.id.equals(id))).go();
+  }
 
   // Assignment queries
   Future<Assignment?> getAssignment(String playerId) =>

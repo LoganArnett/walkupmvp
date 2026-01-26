@@ -258,7 +258,8 @@ class _WalkupSongTab extends ConsumerWidget {
                     }
                   }
 
-                  await db.insertAssignment(
+                  // Use insert or replace mode to handle existing assignments
+                  await db.into(db.assignments).insertOnConflictUpdate(
                     drift.AssignmentsCompanion.insert(
                       playerId: player.id,
                       sourceType: 'youtube',
@@ -287,7 +288,8 @@ class _WalkupSongTab extends ConsumerWidget {
 
     if (result != null && result.files.isNotEmpty) {
       final file = result.files.first;
-      await db.insertAssignment(
+      // Use insert or replace mode to handle existing assignments
+      await db.into(db.assignments).insertOnConflictUpdate(
         drift.AssignmentsCompanion.insert(
           playerId: player.id,
           sourceType: 'localFile',
@@ -448,7 +450,8 @@ class _AnnouncementTab extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () async {
-                await db.insertAnnouncement(
+                // Use insert or replace mode to handle existing announcements
+                await db.into(db.announcements).insertOnConflictUpdate(
                   drift.AnnouncementsCompanion.insert(
                     playerId: player.id,
                     mode: 'tts',

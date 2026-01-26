@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:walkupmvp/app/providers.dart';
 import 'package:walkupmvp/data/local/app_db.dart';
 import 'package:walkupmvp/data/local/seed_data.dart';
+import 'package:walkupmvp/debug_db.dart';
 
 class TeamsScreen extends ConsumerWidget {
   const TeamsScreen({super.key});
@@ -18,6 +19,13 @@ class TeamsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Teams'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            tooltip: 'Debug DB',
+            onPressed: () async {
+              await debugDatabase(db);
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.science),
             tooltip: 'Seed sample data',

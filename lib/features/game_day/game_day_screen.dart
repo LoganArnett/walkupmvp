@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:walkupmvp/app/providers.dart';
 import 'package:walkupmvp/features/teams/teams_screen.dart';
 import 'package:walkupmvp/features/roster/roster_screen.dart';
+import 'package:walkupmvp/features/game_day/youtube_player_widget.dart';
+import 'package:walkupmvp/data/local/app_db.dart' as drift;
 
 /// Game Day screen - main controller for playing walkup songs during games
 class GameDayScreen extends ConsumerStatefulWidget {
@@ -15,6 +17,8 @@ class GameDayScreen extends ConsumerStatefulWidget {
 class _GameDayScreenState extends ConsumerState<GameDayScreen> {
   int? _selectedPlayerIndex;
   String? _selectedPlayerId;
+  drift.Assignment? _currentAssignment;
+  bool _showYouTubePlayer = false;
 
   @override
   Widget build(BuildContext context) {
@@ -155,10 +159,31 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                           'Batting ${player.battingOrder}',
                           style: TextStyle(color: Colors.grey[400]),
                         ),
-                        trailing: Icon(
-                          Icons.music_note,
-                          color: isSelected ? Colors.white : Colors.grey[600],
-                        ),
+                        trailing: _showYouTubePlayer && 
+                                _currentAssignment != null && 
+                                player.id == _selectedPlayerId
+                            ? SizedBox(
+                                width: 80,
+                                height: 45,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: GameDayYouTubePlayer(
+                                    videoId: _currentAssignment!.youtubeVideoId ?? '',
+                                    startSeconds: _currentAssignment!.startSec ?? 0,
+                                    durationSeconds: _currentAssignment!.durationSec ?? 10,
+                                    onEnded: () {
+                                      setState(() {
+                                        _showYouTubePlayer = false;
+                                        _currentAssignment = null;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              )
+                            : Icon(
+                                Icons.music_note,
+                                color: isSelected ? Colors.white : Colors.grey[600],
+                              ),
                         onTap: () {
                           setState(() {
                             _selectedPlayerIndex = index;
@@ -221,7 +246,7 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                                     text = text.replaceAll('{number}', '${player.number}');
                                     await audioController.speak(text);
                                     // Wait for TTS to finish (approximate)
-                                    await Future.delayed(const Duration(seconds: 3));
+                                    await Future.delayed(const Duration(seconds: 2));
                                   }
                                   
                                   // Play walkup song
@@ -236,16 +261,11 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                                             : null,
                                       );
                                     } else if (assignment.sourceType == 'youtube') {
-                                      // YouTube playback requires youtube_player_iframe widget
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                              'YouTube: ${assignment.youtubeVideoId} (${assignment.startSec}s)'),
-                                          duration: const Duration(seconds: 3),
-                                        ),
-                                      );
-                                      }
+                                      // Show YouTube player widget
+                                      setState(() {
+                                        _currentAssignment = assignment;
+                                        _showYouTubePlayer = true;
+                                      });
                                     }
                                   } else {
                                     if (context.mounted) {
@@ -291,6 +311,10 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                     child: ElevatedButton(
                       onPressed: () async {
                         await audioController.stopAll();
+                        setState(() {
+                          _showYouTubePlayer = false;
+                          _currentAssignment = null;
+                        });
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

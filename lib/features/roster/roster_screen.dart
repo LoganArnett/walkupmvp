@@ -167,17 +167,30 @@ class RosterScreen extends ConsumerWidget {
             FilledButton(
               onPressed: () async {
                 if (formKey.currentState?.validate() ?? false) {
-                  await db.insertPlayer(
-                    PlayersCompanion.insert(
-                      id: const Uuid().v4(),
-                      teamId: teamId,
-                      name: nameController.text.trim(),
-                      number: int.parse(numberController.text),
-                      battingOrder: maxOrder + 1,
-                      updatedAt: DateTime.now(),
-                    ),
-                  );
-                  if (context.mounted) Navigator.pop(context);
+                  try {
+                    await db.insertPlayer(
+                      PlayersCompanion.insert(
+                        id: const Uuid().v4(),
+                        teamId: teamId,
+                        name: nameController.text.trim(),
+                        number: int.parse(numberController.text),
+                        battingOrder: maxOrder + 1,
+                        updatedAt: DateTime.now(),
+                      ),
+                    );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Added ${nameController.text}')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
                 }
               },
               child: const Text('Add'),
