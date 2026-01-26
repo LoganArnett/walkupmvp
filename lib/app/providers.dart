@@ -42,3 +42,15 @@ final selectedPlayerIndexProvider = StateProvider<int?>((ref) => null);
 
 /// Audio playing state
 final isPlayingProvider = StateProvider<bool>((ref) => false);
+
+/// Get assignment for a specific player
+final playerAssignmentProvider = FutureProvider.family<Assignment?, String>((ref, playerId) async {
+  final db = ref.watch(databaseProvider);
+  return db.getAssignment(playerId);
+});
+
+/// Get announcement for a specific player
+final playerAnnouncementProvider = FutureProvider.family<Announcement?, String>((ref, playerId) async {
+  final db = ref.watch(databaseProvider);
+  return db.getAnnouncement(playerId);
+});

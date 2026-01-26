@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:walkupmvp/app/providers.dart';
 import 'package:walkupmvp/data/local/app_db.dart';
+import 'package:walkupmvp/features/audio/audio_assignment_screen.dart';
 
 class RosterScreen extends ConsumerWidget {
   const RosterScreen({super.key});
@@ -69,6 +70,19 @@ class RosterScreen extends ConsumerWidget {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    IconButton(
+                      icon: const Icon(Icons.music_note),
+                      tooltip: 'Assign Audio',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                AudioAssignmentScreen(player: player),
+                          ),
+                        );
+                      },
+                    ),
                     IconButton(
                       icon: const Icon(Icons.edit),
                       onPressed: () => _showEditPlayerDialog(

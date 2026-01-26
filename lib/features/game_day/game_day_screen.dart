@@ -14,11 +14,14 @@ class GameDayScreen extends ConsumerStatefulWidget {
 
 class _GameDayScreenState extends ConsumerState<GameDayScreen> {
   int? _selectedPlayerIndex;
+  String? _selectedPlayerId;
 
   @override
   Widget build(BuildContext context) {
     final currentTeamId = ref.watch(currentTeamIdProvider);
     final playersAsync = ref.watch(currentTeamPlayersProvider);
+    final audioController = ref.watch(audioControllerProvider);
+    final db = ref.watch(databaseProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey[900],
@@ -159,6 +162,7 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                         onTap: () {
                           setState(() {
                             _selectedPlayerIndex = index;
+                            _selectedPlayerId = player.id;
                           });
                         },
                       ),
@@ -200,18 +204,58 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
-                      onPressed: _selectedPlayerIndex != null
-                          ? () {
-                              playersAsync.whenData((players) {
+                      onPressed: _selectedPlayerIndex != null && _selectedPlayerId != null
+                          ? () async {
+                              playersAsync.whenData((players) async {
                                 if (_selectedPlayerIndex! < players.length) {
                                   final player = players[_selectedPlayerIndex!];
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Playing walkup for ${player.name}'),
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
+                                  
+                                  // Get audio assignments
+                                  final assignment = await db.getAssignment(_selectedPlayerId!);
+                                  final announcement = await db.getAnnouncement(_selectedPlayerId!);
+                                  
+                                  // Play announcement first (if exists)
+                                  if (announcement != null && announcement.mode == 'tts') {
+                                    String text = announcement.ttsTemplate ?? '';
+                                    text = text.replaceAll('{name}', player.name);
+                                    text = text.replaceAll('{number}', '${player.number}');
+                                    await audioController.speak(text);
+                                    // Wait for TTS to finish (approximate)
+                                    await Future.delayed(const Duration(seconds: 3));
+                                  }
+                                  
+                                  // Play walkup song
+                                  if (assignment != null) {
+                                    if (assignment.sourceType == 'localFile' && 
+                                        assignment.localUri != null) {
+                                      await audioController.playLocalClip(
+                                        uri: Uri.file(assignment.localUri!),
+                                        start: Duration(seconds: assignment.startSec ?? 0),
+                                        duration: assignment.durationSec != null 
+                                            ? Duration(seconds: assignment.durationSec!)
+                                            : null,
+                                      );
+                                    } else if (assignment.sourceType == 'youtube') {
+                                      // YouTube playback requires youtube_player_iframe widget
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'YouTube: ${assignment.youtubeVideoId} (${assignment.startSec}s)'),
+                                          duration: const Duration(seconds: 3),
+                                        ),
+                                      );
+                                      }
+                                    }
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('No audio assigned to ${player.name}'),
+                                        ),
+                                      );
+                                    }
+                                  }
                                 }
                               });
                             }
@@ -245,14 +289,16 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                   // STOP button
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: Stop all audio
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Audio stopped'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
+                      onPressed: () async {
+                        await audioController.stopAll();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Audio stopped'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red[600],
