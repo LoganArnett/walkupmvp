@@ -25,6 +25,7 @@ final allTeamsProvider = StreamProvider((ref) {
 
 /// Current team ID provider (can be overridden by user selection)
 final currentTeamIdProvider = StateProvider<String?>((ref) => null);
+final currentTeamNameProvider = StateProvider<String?>((ref) => null);
 
 /// Players for current team provider
 final currentTeamPlayersProvider = StreamProvider((ref) {

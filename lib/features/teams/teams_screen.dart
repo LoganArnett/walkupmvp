@@ -85,6 +85,7 @@ class TeamsScreen extends ConsumerWidget {
                 ),
                 onTap: () {
                   ref.read(currentTeamIdProvider.notifier).state = team.id;
+                  ref.read(currentTeamNameProvider.notifier).state = team.name;
                   Navigator.pop(context);
                 },
               );

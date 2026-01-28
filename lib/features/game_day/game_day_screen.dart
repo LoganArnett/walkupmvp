@@ -23,6 +23,7 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
   @override
   Widget build(BuildContext context) {
     final currentTeamId = ref.watch(currentTeamIdProvider);
+    final currentTeamName = ref.watch(currentTeamNameProvider);
     final playersAsync = ref.watch(currentTeamPlayersProvider);
     final audioController = ref.watch(audioControllerProvider);
     final db = ref.watch(databaseProvider);
@@ -70,7 +71,7 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    currentTeamId == null ? 'No Team Selected' : 'Team Selected',
+                    currentTeamName == null ? 'No Team Selected' : currentTeamName,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
