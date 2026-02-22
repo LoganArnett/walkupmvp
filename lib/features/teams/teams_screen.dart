@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:walkupmvp/app/providers.dart';
 import 'package:walkupmvp/data/local/app_db.dart';
-import 'package:walkupmvp/data/local/seed_data.dart';
-import 'package:walkupmvp/debug_db.dart';
 
 class TeamsScreen extends ConsumerWidget {
   const TeamsScreen({super.key});
@@ -18,36 +16,6 @@ class TeamsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Teams'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            tooltip: 'Debug DB',
-            onPressed: () async {
-              await debugDatabase(db);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.science),
-            tooltip: 'Seed sample data',
-            onPressed: () async {
-              final seeder = SeedData(db);
-              if (!await seeder.hasData()) {
-                await seeder.seedMultipleTeams();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Seeded sample teams')),
-                  );
-                }
-              } else {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Data already present')),
-                  );
-                }
-              }
-            },
-          )
-        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateTeamDialog(context, db),
@@ -78,7 +46,32 @@ class TeamsScreen extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.delete),
                       onPressed: () async {
-                        await db.deleteTeam(team.id);
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Delete Team'),
+                            content: Text(
+                              'Are you sure you want to delete "${team.name}"? '
+                              'This will also remove all players and their assignments.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          await db.deleteTeam(team.id);
+                        }
                       },
                     ),
                   ],
@@ -86,6 +79,8 @@ class TeamsScreen extends ConsumerWidget {
                 onTap: () {
                   ref.read(currentTeamIdProvider.notifier).state = team.id;
                   ref.read(currentTeamNameProvider.notifier).state = team.name;
+                  ref.read(sharedPreferencesProvider)
+                      .setString('lastTeamId', team.id);
                   Navigator.pop(context);
                 },
               );

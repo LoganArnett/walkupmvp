@@ -1,4 +1,4 @@
-package com.example.walkupmvp
+package com.ltw.walkupmvp
 
 import io.flutter.embedding.android.FlutterActivity
 

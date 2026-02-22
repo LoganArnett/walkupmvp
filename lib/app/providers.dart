@@ -1,7 +1,13 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:walkupmvp/data/local/app_db.dart';
 import 'package:walkupmvp/features/audio/audio_controller.dart';
+
+/// SharedPreferences provider - overridden at app startup
+final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
+  throw UnimplementedError('SharedPreferences must be overridden at startup');
+});
 
 /// Database provider - single instance for the app
 final databaseProvider = Provider<AppDb>((ref) {
