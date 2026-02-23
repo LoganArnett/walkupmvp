@@ -19,6 +19,8 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
   String? _selectedPlayerId;
   drift.Assignment? _currentAssignment;
   bool _showYouTubePlayer = false;
+  bool _isPlaying = false;
+  final _youtubePlayerKey = GlobalKey<GameDayYouTubePlayerState>();
 
   @override
   Widget build(BuildContext context) {
@@ -169,13 +171,16 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: GameDayYouTubePlayer(
+                                    key: _youtubePlayerKey,
                                     videoId: _currentAssignment!.youtubeVideoId ?? '',
                                     startSeconds: _currentAssignment!.startSec ?? 0,
                                     durationSeconds: _currentAssignment!.durationSec ?? 10,
+                                    autoPlay: false,
                                     onEnded: () {
                                       setState(() {
                                         _showYouTubePlayer = false;
                                         _currentAssignment = null;
+                                        _isPlaying = false;
                                       });
                                     },
                                   ),
@@ -185,12 +190,14 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                                 Icons.music_note,
                                 color: isSelected ? Colors.white : Colors.grey[600],
                               ),
-                        onTap: () {
-                          setState(() {
-                            _selectedPlayerIndex = index;
-                            _selectedPlayerId = player.id;
-                          });
-                        },
+                        onTap: _isPlaying
+                            ? null
+                            : () {
+                                setState(() {
+                                  _selectedPlayerIndex = index;
+                                  _selectedPlayerId = player.id;
+                                });
+                              },
                       ),
                     );
                   },
@@ -230,45 +237,64 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
-                      onPressed: _selectedPlayerIndex != null && _selectedPlayerId != null
+                      onPressed: _selectedPlayerIndex != null &&
+                              _selectedPlayerId != null &&
+                              !_isPlaying
                           ? () async {
                               playersAsync.whenData((players) async {
                                 if (_selectedPlayerIndex! < players.length) {
                                   final player = players[_selectedPlayerIndex!];
-                                  
+
                                   // Get audio assignments
                                   final assignment = await db.getAssignment(_selectedPlayerId!);
                                   final announcement = await db.getAnnouncement(_selectedPlayerId!);
-                                  
-                                  // Play announcement first (if exists)
-                                  if (announcement != null && announcement.mode == 'tts') {
-                                    String text = announcement.ttsTemplate ?? '';
-                                    text = text.replaceAll('{name}', player.name);
-                                    text = text.replaceAll('{number}', '${player.number}');
-                                    await audioController.speak(text);
-                                    // Wait for TTS to finish (approximate)
-                                    await Future.delayed(const Duration(seconds: 2));
-                                  }
-                                  
-                                  // Play walkup song
+
+                                  setState(() => _isPlaying = true);
+
+                                  // Preload walkup song while announcement plays
                                   if (assignment != null) {
-                                    if (assignment.sourceType == 'localFile' && 
+                                    if (assignment.sourceType == 'localFile' &&
                                         assignment.localUri != null) {
-                                      await audioController.playLocalClip(
+                                      // Preload local clip (load + seek, no play yet)
+                                      await audioController.preloadLocalClip(
                                         uri: Uri.file(assignment.localUri!),
                                         start: Duration(seconds: assignment.startSec ?? 0),
-                                        duration: assignment.durationSec != null 
-                                            ? Duration(seconds: assignment.durationSec!)
-                                            : null,
                                       );
                                     } else if (assignment.sourceType == 'youtube') {
-                                      // Show YouTube player widget
+                                      // Mount YouTube widget in preload (cue) mode
                                       setState(() {
                                         _currentAssignment = assignment;
                                         _showYouTubePlayer = true;
                                       });
                                     }
+                                  }
+
+                                  // Play announcement and wait for it to finish
+                                  if (announcement != null && announcement.mode == 'tts') {
+                                    String text = announcement.ttsTemplate ?? '';
+                                    text = text.replaceAll('{name}', player.name);
+                                    text = text.replaceAll('{number}', '${player.number}');
+                                    await audioController.speakAndWait(text);
+                                  }
+
+                                  // If STOP was pressed during announcement, bail out
+                                  if (!_isPlaying) return;
+
+                                  // Start walkup song playback
+                                  if (assignment != null) {
+                                    if (assignment.sourceType == 'localFile' &&
+                                        assignment.localUri != null) {
+                                      await audioController.playPreloaded(
+                                        duration: assignment.durationSec != null
+                                            ? Duration(seconds: assignment.durationSec!)
+                                            : null,
+                                      );
+                                    } else if (assignment.sourceType == 'youtube') {
+                                      // Tell the preloaded YouTube widget to begin playing
+                                      _youtubePlayerKey.currentState?.startPlayback();
+                                    }
                                   } else {
+                                    setState(() => _isPlaying = false);
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
@@ -311,10 +337,12 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () async {
+                        _youtubePlayerKey.currentState?.stopPlayback();
                         await audioController.stopAll();
                         setState(() {
                           _showYouTubePlayer = false;
                           _currentAssignment = null;
+                          _isPlaying = false;
                         });
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(

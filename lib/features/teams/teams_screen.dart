@@ -34,7 +34,7 @@ class TeamsScreen extends ConsumerWidget {
               final isCurrent = ref.watch(currentTeamIdProvider) == team.id;
               return ListTile(
                 title: Text(team.name),
-                subtitle: Text('Updated ${team.updatedAt.toLocal()}'),
+                // subtitle: Text('Updated ${team.updatedAt.toLocal()}'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

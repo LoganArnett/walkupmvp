@@ -54,14 +54,14 @@ final selectedPlayerIndexProvider = StateProvider<int?>((ref) => null);
 /// Audio playing state
 final isPlayingProvider = StateProvider<bool>((ref) => false);
 
-/// Get assignment for a specific player
-final playerAssignmentProvider = FutureProvider.family<Assignment?, String>((ref, playerId) async {
+/// Get assignment for a specific player (reactive – updates when DB changes)
+final playerAssignmentProvider = StreamProvider.family<Assignment?, String>((ref, playerId) {
   final db = ref.watch(databaseProvider);
-  return db.getAssignment(playerId);
+  return db.watchAssignment(playerId);
 });
 
-/// Get announcement for a specific player
-final playerAnnouncementProvider = FutureProvider.family<Announcement?, String>((ref, playerId) async {
+/// Get announcement for a specific player (reactive – updates when DB changes)
+final playerAnnouncementProvider = StreamProvider.family<Announcement?, String>((ref, playerId) {
   final db = ref.watch(databaseProvider);
-  return db.getAnnouncement(playerId);
+  return db.watchAnnouncement(playerId);
 });

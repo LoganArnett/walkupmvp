@@ -8,7 +8,7 @@
 PRODUCT_NAME = Walk Up MVP
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.ltw.walkupmvp
+PRODUCT_BUNDLE_IDENTIFIER = com.laltw.walkupmvp
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.

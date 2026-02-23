@@ -129,6 +129,9 @@ class AppDb extends _$AppDb {
   Future<Assignment?> getAssignment(String playerId) =>
       (select(assignments)..where((a) => a.playerId.equals(playerId)))
           .getSingleOrNull();
+  Stream<Assignment?> watchAssignment(String playerId) =>
+      (select(assignments)..where((a) => a.playerId.equals(playerId)))
+          .watchSingleOrNull();
   Future<int> insertAssignment(AssignmentsCompanion assignment) =>
       into(assignments).insert(assignment);
   Future<bool> updateAssignment(AssignmentsCompanion assignment) =>
@@ -140,6 +143,9 @@ class AppDb extends _$AppDb {
   Future<Announcement?> getAnnouncement(String playerId) =>
       (select(announcements)..where((a) => a.playerId.equals(playerId)))
           .getSingleOrNull();
+  Stream<Announcement?> watchAnnouncement(String playerId) =>
+      (select(announcements)..where((a) => a.playerId.equals(playerId)))
+          .watchSingleOrNull();
   Future<int> insertAnnouncement(AnnouncementsCompanion announcement) =>
       into(announcements).insert(announcement);
   Future<bool> updateAnnouncement(AnnouncementsCompanion announcement) =>

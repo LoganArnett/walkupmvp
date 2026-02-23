@@ -35,6 +35,50 @@ class AudioController {
     await _tts.speak(text);
   }
 
+  /// Speak text and wait for TTS to finish before returning.
+  /// Uses completion/cancel/error handlers to reliably detect when speech ends.
+  Future<void> speakAndWait(String text) async {
+    if (text.isEmpty) return;
+
+    final completer = Completer<void>();
+
+    _tts.setCompletionHandler(() {
+      if (!completer.isCompleted) completer.complete();
+    });
+    _tts.setCancelHandler(() {
+      if (!completer.isCompleted) completer.complete();
+    });
+    _tts.setErrorHandler((msg) {
+      if (!completer.isCompleted) completer.complete();
+    });
+
+    await _tts.stop();
+    await _tts.speak(text);
+    await completer.future;
+  }
+
+  /// Preload a local audio clip (loads source and seeks) without playing.
+  /// Call [playPreloaded] afterwards to start playback instantly.
+  Future<void> preloadLocalClip({
+    required Uri uri,
+    Duration start = Duration.zero,
+  }) async {
+    await _player.setAudioSource(AudioSource.uri(uri));
+    await _player.seek(start);
+  }
+
+  /// Play the already-preloaded local clip with an optional duration limit.
+  Future<void> playPreloaded({Duration? duration}) async {
+    _stopTimer?.cancel();
+    await _player.play();
+
+    if (duration != null) {
+      _stopTimer = Timer(duration, () async {
+        await _player.stop();
+      });
+    }
+  }
+
   /// Play local audio file with start position and duration
   Future<void> playLocalClip({
     required Uri uri,
