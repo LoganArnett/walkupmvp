@@ -125,6 +125,16 @@ class AppDb extends _$AppDb {
     return (delete(players)..where((p) => p.id.equals(id))).go();
   }
 
+  // Batting order reorder
+  Future<void> reorderBattingOrder(List<String> playerIdsInOrder) async {
+    await transaction(() async {
+      for (var i = 0; i < playerIdsInOrder.length; i++) {
+        await (update(players)..where((p) => p.id.equals(playerIdsInOrder[i])))
+            .write(PlayersCompanion(battingOrder: Value(i + 1)));
+      }
+    });
+  }
+
   // Assignment queries
   Future<Assignment?> getAssignment(String playerId) =>
       (select(assignments)..where((a) => a.playerId.equals(playerId)))

@@ -124,31 +124,76 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                     ),
                   );
                 }
-                return ListView.builder(
+                return ReorderableListView.builder(
                   padding: const EdgeInsets.all(16),
+                  buildDefaultDragHandles: false,
                   itemCount: players.length,
+                  onReorder: _isPlaying
+                      ? (_, _) {}
+                      : (oldIndex, newIndex) {
+                          // ReorderableListView passes newIndex that accounts
+                          // for the item being removed, so adjust when moving down.
+                          if (newIndex > oldIndex) newIndex--;
+                          final reordered = List<drift.Player>.from(players);
+                          final moved = reordered.removeAt(oldIndex);
+                          reordered.insert(newIndex, moved);
+
+                          // Update selected index to follow the selected player
+                          if (_selectedPlayerIndex != null) {
+                            if (_selectedPlayerIndex == oldIndex) {
+                              _selectedPlayerIndex = newIndex;
+                            } else if (oldIndex < _selectedPlayerIndex! &&
+                                newIndex >= _selectedPlayerIndex!) {
+                              _selectedPlayerIndex = _selectedPlayerIndex! - 1;
+                            } else if (oldIndex > _selectedPlayerIndex! &&
+                                newIndex <= _selectedPlayerIndex!) {
+                              _selectedPlayerIndex = _selectedPlayerIndex! + 1;
+                            }
+                          }
+
+                          // Persist new order to database
+                          final ids = reordered.map((p) => p.id).toList();
+                          db.reorderBattingOrder(ids);
+                        },
                   itemBuilder: (context, index) {
                     final player = players[index];
                     final isSelected = _selectedPlayerIndex == index;
 
                     return Card(
+                      key: ValueKey(player.id),
                       color: isSelected ? Colors.blue[700] : Colors.grey[800],
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
+                          horizontal: 12,
                           vertical: 12,
                         ),
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              isSelected ? Colors.blue[900] : Colors.grey[700],
-                          child: Text(
-                            '${player.number}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                        leading: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ReorderableDragStartListener(
+                              index: index,
+                              enabled: !_isPlaying,
+                              child: Icon(
+                                Icons.drag_handle,
+                                color: _isPlaying
+                                    ? Colors.grey[800]
+                                    : Colors.grey[500],
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            CircleAvatar(
+                              backgroundColor:
+                                  isSelected ? Colors.blue[900] : Colors.grey[700],
+                              child: Text(
+                                '${player.number}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         title: Text(
                           player.name,
@@ -159,7 +204,7 @@ class _GameDayScreenState extends ConsumerState<GameDayScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          'Batting ${player.battingOrder}',
+                          'Batting ${index + 1}',
                           style: TextStyle(color: Colors.grey[400]),
                         ),
                         trailing: _showYouTubePlayer && 
